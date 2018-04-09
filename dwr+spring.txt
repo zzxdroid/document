@@ -1,0 +1,107 @@
+DWR和Spring整合（转） 
+Ajax,它使浏览器可以为用户提供更为自然的浏览体验,对于j2EE WEB开发人员来说,使用DWR框架可以很简单的使用Ajax技术.
+本文以一个DWR+SPRING的实例来说明DWR的使用
+1、将dwr.jar放到应用的/WEB-INF/lib目录下
+2、配置web.xml,增加如下代码:
+
+代码
+<!--初始化WebApplicationContext-->   
+<context-param>   
+        <param-name>contextConfigLocation</param-name>   
+        <param-value>/WEB-INF/applicationContext.xml,/WEB-INF/action-servlet.xml</param-value>   
+</context-param>   
+<listener>   
+       <listener-class>   
+              org.springframework.web.context.ContextLoaderListener    
+       </listener-class>   
+</listener>   
+<!--配置DWR拦截器-->   
+<servlet>   
+  <servlet-name>dwr-invoker</servlet-name>   
+  <servlet-class>uk.ltd.getahead.dwr.DWRServlet</servlet-class>   
+  <init-param>   
+   <param-name>debug</param-name>   
+   <param-value>true</param-value>   
+  </init-param>   
+</servlet>   
+<servlet-mapping>   
+  <servlet-name>dwr-invoker</servlet-name>   
+  <url-pattern>/dwr/*</url-pattern>   
+</servlet-mapping>   
+
+3、增中dwr.xml文件
+文件内容：
+
+代码
+<?xml version="1.0" encoding="UTF-8"?>   
+<!DOCTYPE dwr PUBLIC "-//GetAhead Limited//DTD Direct Web Remoting 1.0//EN" "http://www.getahead.ltd.uk/dwr/dwr10.dtd">   
+<dwr>   
+<allow>   
+<convert converter="bean" match="com.wxy.pojo.*" />//可以用从返回值点取pojo下的javabean的各个属性分别显示每个属性值 
+  <create creator="spring" javascript="DWRUser">   
+   <param name="beanName" value="DWRUser"/>   
+  </create>   
+</allow>   
+</dwr>   
+
+creator属性的值可以是new,struts,spring......因为此处是整合spring来做的，所以设置成“spring”，javascript="DWRUser" 表示实例转换成javascript语言后以DWRUser命名，前台页面可以通过代码（<script type='text/javascript' src='../../dwr/interface/DWRUser.js'></script>）来调用。param元素的name属性值可以是class,beanName等，此处用beanName,value得值是定义在applicationContext.xml中某个bean的id值。
+4、创建一个实体bean供DWR转换成js
+
+代码
+package com.note.dwr;    
+import com.note.bussies.service.IUserService;    
+public class User {    
+private IUserService ius;    
+   
+public IUserService getIus() {    
+  return ius;    
+}    
+public void setIus(IUserService ius) {    
+  this.ius = ius;    
+}    
+public User(){    
+      
+}    
+public boolean isExist(String username) {    
+       Users user = this.ius.getUserByName(username);    
+      return (null == user) ? false : true;    
+}    
+}   
+
+5、在applicationContext.xml中配置第4步写的bean
+
+代码
+......    
+<bean id="DWRUser" class="com.note.dwr.User">   
+  <property name="ius">   
+   <ref bean="UserService" />   
+  </property>   
+</bean>   
+......   
+
+6、在视图页面中调用
+先导入以下文，每个文件的功能这里不再详述
+
+代码
+<script type='text/javascript' src='../../dwr/interface/DWRUser.js'></script>   
+<script type='text/javascript' src='../../dwr/engine.js'></script>   
+<script type='text/javascript' src='../../dwr/util.js'></script>   
+
+因为我的视图文件是放在/view/user/下，所以这里用了../../返回到根
+具体调用：
+
+代码
+<script type='text/javascript'>   
+function regUserChked(){    
+   var username=$("username").value;    
+  DWRUser.isExist(username,showData);//showData回调函数    
+}    
+function showData(data){    
+      if(data){    
+          DWRUtil.setValue("userMsg","该用户名已经被注册，请更换您的用户名！");    
+      }else{    
+          DWRUtil.setValue("userMsg","恭喜您，该用户名尚未被注册！");          
+      }    
+}    
+</script>   
+input type="text" name="username" value="" onblur="regUserChked()" /><div id="userMsg"></div>   
